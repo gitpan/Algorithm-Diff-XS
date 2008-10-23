@@ -6,16 +6,32 @@ use vars '$VERSION';
 use Algorithm::Diff;
 
 BEGIN {
-    $VERSION = '0.02';
+    $VERSION = '0.03';
     require XSLoader;
     XSLoader::load(__PACKAGE__, $VERSION);
 
+    my $code = do {
+        open my $fh, '<', $INC{'Algorithm/Diff.pm'}
+            or die "Cannot read $INC{'Algorithm/Diff.pm'}: $!";
+        local $/; <$fh>;
+    };
+
+    {
+        no warnings;
+        local $@;
+        $code =~ s/Algorithm::Diff/Algorithm::Diff::XS/g;
+	$code =~ s/sub LCSidx/sub LCSidx_old/g;
+	$code = "#line 1 ".__FILE__."\n$code";
+        eval $code;
+        die $@ if $@;
+    }
+
     no warnings 'redefine';
     my $lcs;
-    *Algorithm::Diff::LCSidx = sub {
-        $lcs ||= Algorithm::Diff::XS->CREATE;
+    sub LCSidx {
+        $lcs ||= Algorithm::Diff::XS->_CREATE_;
         my (@l, @r);
-        for ( $lcs->LCS(@_) ) {
+        for ( $lcs->_LCS_(@_) ) {
             push @l, $_->[0];
             push @r, $_->[1];
         }
@@ -23,41 +39,14 @@ BEGIN {
     };
 }
 
-sub new {
-    no warnings 'once';
-    my $class = shift;
-    unshift @_, 'Algorithm::Diff';
-    goto &Algorithm::Diff::new;
-}
-
-sub import {
-    no warnings 'once';
-    my $class = shift;
-    unshift @_, 'Algorithm::Diff';
-    goto &Algorithm::Diff::import;
-}
-
-# Simply forward to Algorithm::Diff
-sub AUTOLOAD {
-    use vars '$AUTOLOAD';
-    $AUTOLOAD =~ s/^Algorithm::Diff::XS/Algorithm::Diff/;
-    goto &$AUTOLOAD;
-}
-
-sub line_map {
+sub _line_map_ {
     my $ctx = shift;
     my %lines;
     push @{ $lines{$_[$_]} }, $_ for 0..$#_; # values MUST be SvIOK
     \%lines;
 }
 
-sub callback {
-    my ($ctx, @b) = @_;
-    my $h = $ctx->line_map(@b);
-    sub { @_ ? _core_loop($ctx, $_[0], 0, $#{$_[0]}, $h) : @b }
-}
-
-sub LCS {
+sub _LCS_ {
     my ($ctx, $a, $b) = @_;
     my ($amin, $amax, $bmin, $bmax) = (0, $#$a, 0, $#$b);
 
@@ -70,12 +59,12 @@ sub LCS {
         $bmax--;
     }
 
-    my $h = $ctx->line_map(@$b[$bmin..$bmax]); # line numbers are off by $bmin
+    my $h = $ctx->_line_map_(@$b[$bmin..$bmax]); # line numbers are off by $bmin
 
-    return $amin + _core_loop($ctx, $a, $amin, $amax, $h) + ($#$a - $amax)
+    return $amin + _core_loop_($ctx, $a, $amin, $amax, $h) + ($#$a - $amax)
         unless wantarray;
 
-    my @lcs = _core_loop($ctx,$a,$amin,$amax,$h);
+    my @lcs = _core_loop_($ctx,$a,$amin,$amax,$h);
     if ($bmin > 0) {
         $_->[1] += $bmin for @lcs; # correct line numbers
     }
@@ -96,9 +85,9 @@ Algorithm::Diff::XS - Algorithm::Diff with XS core loop
 
 =head1 SYNOPSIS
 
-    # Drop-in replacement to Algorithm::Diff, but ~50x faster
-    use Algorithm::Diff::XS qw( ... );
-    Algorithm::Diff::XS->new( ... );
+    # Drop-in replacement to Algorithm::Diff, but "compact_diff"
+    # and C<LCSidx> will run much faster for large data sets.
+    use Algorithm::Diff::XS qw( compact_diff LCSidx );
 
 =head1 DESCRIPTION
 
@@ -106,6 +95,29 @@ This module is a simple re-packaging of Joe Schaefer's excellent
 but not very well-known L<Algorithm::LCS> with a drop-in interface
 that simply re-uses the installed version of the L<Algorithm::Diff>
 module.
+
+Note that only the C<LCSidx> function is optimized in XS at the
+moment, which means only C<compact_diff> will get significantly
+faster for large data sets, while C<diff> and C<sdiff> will run
+in identical speed as C<Algorithm::Diff>.
+
+=head1 BENCHMARK
+
+                      Rate     Algorithm::Diff Algorithm::Diff::XS
+Algorithm::Diff     14.7/s                  --                -98%
+Algorithm::Diff::XS  806/s               5402%                  --
+
+The benchmarking script is as below:
+
+    my @data = ([qw/a b d/ x 50], [qw/b a d c/ x 50]);
+    cmpthese( 500, {
+        'Algorithm::Diff' => sub {
+            Algorithm::Diff::compact_diff(@data)
+        },
+        'Algorithm::Diff::XS' => sub {
+            Algorithm::Diff::XS::compact_diff(@data)
+        },
+    });
 
 =head1 SEE ALSO
 

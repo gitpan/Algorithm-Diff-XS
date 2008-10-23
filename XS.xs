@@ -108,7 +108,7 @@ static IV lcs_DESTROY(SV *sv)
 }
 
 inline
-static SV *lcs_CREATE(char *class)
+static SV *lcs__CREATE_(char *class)
 {
         struct CTX *ctx = malloc(sizeof *ctx);
 
@@ -160,11 +160,11 @@ static int rnlw(struct TA *a, const IV aValue, IV high)
 MODULE = Algorithm::Diff::XS PACKAGE = Algorithm::Diff::XS PREFIX = lcs_
 PROTOTYPES: DISABLED
 
-SV *lcs_CREATE(char *class)
+SV *lcs__CREATE_(char *class)
 
 IV lcs_DESTROY(SV *sv) 
 
-void lcs__core_loop(obj, a, a_min, a_max, h)
+void lcs__core_loop_(obj, a, a_min, a_max, h)
     SV *obj
     AV *a
     IV a_min
