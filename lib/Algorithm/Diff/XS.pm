@@ -6,7 +6,7 @@ use vars '$VERSION';
 use Algorithm::Diff;
 
 BEGIN {
-    $VERSION = '0.01';
+    $VERSION = '0.02';
     require XSLoader;
     XSLoader::load(__PACKAGE__, $VERSION);
 
@@ -102,9 +102,10 @@ Algorithm::Diff::XS - Algorithm::Diff with XS core loop
 
 =head1 DESCRIPTION
 
-This module is a simple re-packaging of Joe Schaefer'S excellent
+This module is a simple re-packaging of Joe Schaefer's excellent
 but not very well-known L<Algorithm::LCS> with a drop-in interface
-that simply re-uses the L<Algorithm::Diff> module.
+that simply re-uses the installed version of the L<Algorithm::Diff>
+module.
 
 =head1 SEE ALSO
 
@@ -119,7 +120,7 @@ Audrey Tang E<lt>cpan@audreyt.orgE<gt>
 Copyright 2008 by Audrey Tang E<lt>cpan@audreyt.orgE<gt>.
 
 Contains derived code copyrighted 2003 by Joe Schaefer,
- E<lt>joe+cpan@sunstarsys.comE<gt>.
+E<lt>joe+cpan@sunstarsys.comE<gt>.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

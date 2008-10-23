@@ -7,10 +7,11 @@ inc/Module/Install/Metadata.pm
 inc/Module/Install/Win32.pm
 inc/Module/Install/WriteAll.pm
 lib/Algorithm/Diff/XS.pm
-lib/Algorithm/Diff/XS/LCS.pm
+Changes
 Makefile.PL
 MANIFEST			This list of files
 META.yml
+README
 ppport.h
 t/base.t
 t/oo.t
