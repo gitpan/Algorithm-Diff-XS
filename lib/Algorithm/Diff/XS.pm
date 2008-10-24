@@ -6,74 +6,75 @@ use vars '$VERSION';
 use Algorithm::Diff;
 
 BEGIN {
-    $VERSION = '0.03';
+    $VERSION = '0.04';
     require XSLoader;
-    XSLoader::load(__PACKAGE__, $VERSION);
+    XSLoader::load( __PACKAGE__, $VERSION );
 
     my $code = do {
         open my $fh, '<', $INC{'Algorithm/Diff.pm'}
-            or die "Cannot read $INC{'Algorithm/Diff.pm'}: $!";
-        local $/; <$fh>;
+          or die "Cannot read $INC{'Algorithm/Diff.pm'}: $!";
+        local $/;
+        <$fh>;
     };
 
     {
         no warnings;
         local $@;
         $code =~ s/Algorithm::Diff/Algorithm::Diff::XS/g;
-	$code =~ s/sub LCSidx/sub LCSidx_old/g;
-	$code = "#line 1 ".__FILE__."\n$code";
+        $code =~ s/sub LCSidx/sub LCSidx_old/g;
+        $code = "#line 1 " . __FILE__ . "\n$code";
         eval $code;
         die $@ if $@;
     }
 
     no warnings 'redefine';
-    my $lcs;
+
     sub LCSidx {
-        $lcs ||= Algorithm::Diff::XS->_CREATE_;
-        my (@l, @r);
-        for ( $lcs->_LCS_(@_) ) {
-            push @l, $_->[0];
-            push @r, $_->[1];
+        my $lcs = Algorithm::Diff::XS->_CREATE_;
+        my ( @l, @r );
+        for my $chunk ( $lcs->_LCS_(@_) ) {
+            push @l, $chunk->[0];
+            push @r, $chunk->[1];
         }
-        return(\@l, \@r);
-    };
+        return ( \@l, \@r );
+    }
 }
 
 sub _line_map_ {
     my $ctx = shift;
     my %lines;
-    push @{ $lines{$_[$_]} }, $_ for 0..$#_; # values MUST be SvIOK
+    push @{ $lines{ $_[$_] } }, $_ for 0 .. $#_;    # values MUST be SvIOK
     \%lines;
 }
 
 sub _LCS_ {
-    my ($ctx, $a, $b) = @_;
-    my ($amin, $amax, $bmin, $bmax) = (0, $#$a, 0, $#$b);
+    my ( $ctx, $a, $b ) = @_;
+    my ( $amin, $amax, $bmin, $bmax ) = ( 0, $#$a, 0, $#$b );
 
-    while ($amin <= $amax and $bmin <= $bmax and $a->[$amin] eq $b->[$bmin]) {
+    while ( $amin <= $amax and $bmin <= $bmax and $a->[$amin] eq $b->[$bmin] ) {
         $amin++;
         $bmin++;
     }
-    while ($amin <= $amax and $bmin <= $bmax and $a->[$amax] eq $b->[$bmax]) {
+    while ( $amin <= $amax and $bmin <= $bmax and $a->[$amax] eq $b->[$bmax] ) {
         $amax--;
         $bmax--;
     }
 
-    my $h = $ctx->_line_map_(@$b[$bmin..$bmax]); # line numbers are off by $bmin
+    my $h =
+      $ctx->_line_map_( @$b[ $bmin .. $bmax ] ); # line numbers are off by $bmin
 
-    return $amin + _core_loop_($ctx, $a, $amin, $amax, $h) + ($#$a - $amax)
-        unless wantarray;
+    return $amin + _core_loop_( $ctx, $a, $amin, $amax, $h ) + ( $#$a - $amax )
+      unless wantarray;
 
-    my @lcs = _core_loop_($ctx,$a,$amin,$amax,$h);
-    if ($bmin > 0) {
-        $_->[1] += $bmin for @lcs; # correct line numbers
+    my @lcs = _core_loop_( $ctx, $a, $amin, $amax, $h );
+    if ( $bmin > 0 ) {
+        $_->[1] += $bmin for @lcs;               # correct line numbers
     }
 
-    map([$_ => $_], 0 .. ($amin-1)),
-        @lcs,
-            map([$_ => ++$bmax], ($amax+1) .. $#$a);
+    map( [ $_ => $_ ], 0 .. ( $amin - 1 ) ),
+      @lcs,
+      map( [ $_ => ++$bmax ], ( $amax + 1 ) .. $#$a );
 }
-
 
 1;
 
